@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Churn Predictor</title>
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      padding: 28px 32px;
+      border-bottom: 1px solid #1e3a5f;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .icon { font-size: 2rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; color: #f1f5f9; }
+    header p  { font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    main {
+      max-width: 1000px;
+      margin: 36px auto;
+      padding: 0 20px;
+    }
+
+    /* ── Card ────────────────────────────────────────────────── */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Grid ────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    /* ── Field ───────────────────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field select,
+    .field input[type="number"] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #f1f5f9;
+      padding: 9px 12px;
+      font-size: 0.92rem;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+    .field select:focus,
+    .field input[type="number"]:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56,189,248,.15);
+    }
+    .field input[type="number"]::-webkit-inner-spin-button { opacity: 0.5; }
+
+    /* ── Submit ───────────────────────────────────────────────── */
+    .btn-predict {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      letter-spacing: .03em;
+    }
+    .btn-predict:hover  { opacity: .9; }
+    .btn-predict:active { transform: scale(.98); }
+
+    /* ── Result ───────────────────────────────────────────────── */
+    #result { display: none; }
+
+    .result-box {
+      border-radius: 14px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      border: 1.5px solid;
+    }
+    .result-box.churn    { background: #1f0a0a; border-color: #ef4444; }
+    .result-box.no-churn { background: #041a10; border-color: #22c55e; }
+
+    .result-emoji { font-size: 3.5rem; }
+
+    .result-info h3 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .churn    .result-info h3 { color: #f87171; }
+    .no-churn .result-info h3 { color: #4ade80; }
+
+    .result-info p { color: #94a3b8; font-size: 0.92rem; }
+
+    .badges { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .badge-prob { background: #1e3a5f; color: #38bdf8; }
+    .badge-risk-High   { background: #3f0a0a; color: #f87171; }
+    .badge-risk-Medium { background: #2d1b00; color: #fbbf24; }
+    .badge-risk-Low    { background: #041a10; color: #4ade80; }
+
+    /* ── Progress bar ────────────────────────────────────────── */
+    .prob-bar-wrap { margin-top: 16px; }
+    .prob-bar-label {
+      font-size: 0.78rem; color: #94a3b8;
+      display: flex; justify-content: space-between; margin-bottom: 6px;
+    }
+    .prob-bar-track {
+      height: 8px; background: #0f172a; border-radius: 99px; overflow: hidden;
+    }
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+    .churn    .prob-bar-fill { background: linear-gradient(90deg,#ef4444,#f97316); }
+    .no-churn .prob-bar-fill { background: linear-gradient(90deg,#22c55e,#06b6d4); }
+
+    /* ── Error ───────────────────────────────────────────────── */
+    .error-box {
+      background: #1f0a0a; border: 1.5px solid #ef4444;
+      border-radius: 10px; padding: 16px 20px;
+      color: #f87171; font-size: 0.9rem;
+    }
+
+    /* ── Loader ──────────────────────────────────────────────── */
+    .loader {
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 640px) {
+      .grid, .grid-3 { grid-template-columns: 1fr 1fr; }
+      .result-box { flex-direction: column; text-align: center; }
+      .badges { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="icon">📡</div>
+  <div>
+    <h1>Customer Churn Predictor</h1>
+    <p>Telco AI · Powered by Random Forest</p>
+  </div>
+</header>
+
+<main>
+  <form id="churnForm">
+
+    <!-- Personal Info -->
+    <div class="card">
+      <h2>👤 Personal Information</h2>
+      <div class="grid">
+
+        <div class="field">
+          <label>Gender</label>
+          <select name="gender">
+            {% for v in options.gender %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Senior Citizen</label>
+          <select name="SeniorCitizen">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Partner</label>
+          <select name="Partner">
+            {% for v in options.Partner %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Dependents</label>
+          <select name="Dependents">
+            {% for v in options.Dependents %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Tenure (months)</label>
+          <input type="number" name="tenure" min="0" max="120" value="12" />
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Services -->
+    <div class="card">
+      <h2>📱 Phone &amp; Internet Services</h2>
+      <div class="grid">
+
+        <div class="field">
+          <label>Phone Service</label>
+          <select name="PhoneService">
+            {% for v in options.PhoneService %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Multiple Lines</label>
+          <select name="MultipleLines">
+            {% for v in options.MultipleLines %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Internet Service</label>
+          <select name="InternetService">
+            {% for v in options.InternetService %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Online Security</label>
+          <select name="OnlineSecurity">
+            {% for v in options.OnlineSecurity %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Online Backup</label>
+          <select name="OnlineBackup">
+            {% for v in options.OnlineBackup %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Device Protection</label>
+          <select name="DeviceProtection">
+            {% for v in options.DeviceProtection %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Tech Support</label>
+          <select name="TechSupport">
+            {% for v in options.TechSupport %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Streaming TV</label>
+          <select name="StreamingTV">
+            {% for v in options.StreamingTV %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Streaming Movies</label>
+          <select name="StreamingMovies">
+            {% for v in options.StreamingMovies %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div class="card">
+      <h2>💳 Billing &amp; Contract</h2>
+      <div class="grid">
+
+        <div class="field">
+          <label>Contract</label>
+          <select name="Contract">
+            {% for v in options.Contract %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Paperless Billing</label>
+          <select name="PaperlessBilling">
+            {% for v in options.PaperlessBilling %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Payment Method</label>
+          <select name="PaymentMethod">
+            {% for v in options.PaymentMethod %}<option>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Monthly Charges (Rupees)</label>
+          <input type="number" name="MonthlyCharges" min="0" max="200" step="0.01" value="65.00" />
+        </div>
+
+        <div class="field">
+          <label>Total Charges (Rupees)</label>
+          <input type="number" name="TotalCharges" min="0" max="10000" step="0.01" value="780.00" />
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <button type="submit" class="btn-predict" id="submitBtn">
+      🔍 &nbsp;Predict Churn
+    </button>
+
+  </form>
+
+  <!-- Result -->
+  <div id="result" style="margin-top:28px;"></div>
+</main>
+
+<script>
+  const form      = document.getElementById("churnForm");
+  const resultDiv = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    resultDiv.style.display = "none";
+
+    submitBtn.innerHTML = '<span class="loader"></span> Analysing…';
+    submitBtn.disabled  = true;
+
+    try {
+      const res  = await fetch("/predict", { method: "POST", body: new FormData(form) });
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.error);
+
+      const isChurn = data.churn === "Yes";
+      const cls     = isChurn ? "churn" : "no-churn";
+      const emoji   = isChurn ? "⚠️" : "✅";
+      const verdict = isChurn ? "Customer Will Churn" : "Customer Will Stay";
+      const msg     = isChurn
+        ? "This customer is at risk of leaving. Consider retention offers."
+        : "This customer is likely to remain with the service.";
+
+      resultDiv.innerHTML = `
+        <div class="result-box ${cls}">
+          <div class="result-emoji">${emoji}</div>
+          <div class="result-info" style="flex:1;">
+            <h3>${verdict}</h3>
+            <p>${msg}</p>
+            <div class="badges">
+              <span class="badge badge-prob">Probability: ${data.probability}%</span>
+              <span class="badge badge-risk-${data.risk}">Risk: ${data.risk}</span>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-bar-label">
+                <span>Churn probability</span>
+                <span>${data.probability}%</span>
+              </div>
+              <div class="prob-bar-track">
+                <div class="prob-bar-fill" id="bar" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      resultDiv.style.display = "block";
+      // Animate bar after paint
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          document.getElementById("bar").style.width = data.probability + "%";
+        });
+      });
+
+    } catch (err) {
+      resultDiv.innerHTML = `<div class="error-box">⚠️ <strong>Error:</strong> ${err.message}</div>`;
+      resultDiv.style.display = "block";
+    } finally {
+      submitBtn.innerHTML = "🔍 &nbsp;Predict Churn";
+      submitBtn.disabled  = false;
+    }
+  });
+</script>
+</body>
+</html>
